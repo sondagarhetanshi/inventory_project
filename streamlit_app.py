@@ -43,6 +43,22 @@ with st.sidebar:
     if st.button("Logout"):
         st.session_state.clear()
         st.rerun()
+        with st.sidebar:
+    st.title("📦 Inventory System")
+    
+    # 👇 Ye 2 lines add karein
+    st.markdown("---")
+    st.markdown("**Created by: Hetanshi Sondagar**")
+    
+    menu = st.selectbox(
+        "Menu",
+        ["Dashboard", "Add Product", "Edit/Delete Products", "Reports"]
+    )
+    
+    st.markdown("---")
+    if st.button("Logout"):
+        st.session_state.clear()
+        st.rerun()
 
 # Function to save data
 def save_to_csv():
