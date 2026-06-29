@@ -43,9 +43,8 @@ with st.sidebar:
     if st.button("Logout"):
         st.session_state.clear()
         st.rerun()
-        with st.sidebar:
-    st.title("📦 Inventory System")
-    
+    with st.sidebar:
+   st.title("📦 Inventory System")    
     # 👇 Ye 2 lines add karein
     st.markdown("---")
     st.markdown("**Created by: Hetanshi Sondagar**")
