@@ -16,7 +16,7 @@ if 'products' not in st.session_state:
         'Product Name', 'Category', 'Quantity', 'Price', 'Date Added'
     ])
 
-# Login credentials (aap change kar sakte hain)
+# Login credentials
 VALID_USERNAME = "admin"
 VALID_PASSWORD = "admin123"
 
@@ -41,13 +41,6 @@ if not st.session_state.logged_in:
             st.markdown("#### 📦 Inventory System Login")
             username = st.text_input("Username", placeholder="Enter username")
             password = st.text_input("Password", type="password", placeholder="Enter password")
-            with st.sidebar:
-    st.title("📦 Inventory System")
-    st.markdown("---")
-    st.markdown("**Created by: Hetanshi Sondagar**")
-    st.markdown("---")
-    
-    menu = st.selectbox(
             
             login_button = st.form_submit_button("🔑 Login", type="primary", use_container_width=True)
             
@@ -80,6 +73,8 @@ else:
     # Sidebar
     with st.sidebar:
         st.title("📦 Inventory System")
+        st.markdown("---")
+        st.markdown("**Created by: Hetanshi Sondagar**")
         st.markdown("---")
         st.success(f"✅ Welcome, **{VALID_USERNAME}**!")
         st.markdown("---")
