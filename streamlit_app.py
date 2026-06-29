@@ -31,14 +31,14 @@ def logout():
 
 # ============== LOGIN PAGE ==============
 if not st.session_state.logged_in:
-    st.title("🔐 Login Page")
+    st.title(" Login Page")
     st.markdown("### Please login to continue")
     
     col1, col2, col3 = st.columns([1, 2, 1])
     
     with col2:
         with st.form("login_form", clear_on_submit=False):
-            st.markdown("#### 📦 Inventory System Login")
+            st.markdown("####  Inventory System Login")
             username = st.text_input("Username", placeholder="Enter username")
             password = st.text_input("Password", type="password", placeholder="Enter password")
             
@@ -81,11 +81,11 @@ else:
         
         menu = st.selectbox(
             "Menu",
-            ["📊 Dashboard", "➕ Add Product", "✏️ Edit/Delete Products", "💰 Profit Analysis", "📑 Reports"]
+            [" Dashboard", "➕ Add Product", "️ Edit/Delete Products", "💰 Profit Analysis", "📑 Reports"]
         )
         
         st.markdown("---")
-        if st.button("🚪 Logout", type="secondary", use_container_width=True):
+        if st.button(" Logout", type="secondary", use_container_width=True):
             logout()
 
     # Function to save data
@@ -96,10 +96,30 @@ else:
     # Function to load data
     def load_from_csv():
         if os.path.exists('inventory_data.csv'):
-            st.session_state.products = pd.read_csv('inventory_data.csv')
+            df = pd.read_csv('inventory_data.csv')
+            # Handle backward compatibility: if old 'Price' column exists but no 'Cost Price'/'Selling Price'
+            if 'Price' in df.columns and 'Cost Price' not in df.columns:
+                df['Cost Price'] = df['Price']
+                df['Selling Price'] = df['Price']  # Assume selling price = cost price for old data
+                df = df.drop(columns=['Price'])
+            st.session_state.products = df
 
     # Load existing data
     load_from_csv()
+
+    # Helper function to ensure required columns exist
+    def ensure_profit_columns(df):
+        if df.empty:
+            return df
+        if 'Cost Price' not in df.columns:
+            df['Cost Price'] = 0.0
+        if 'Selling Price' not in df.columns:
+            df['Selling Price'] = 0.0
+        if 'Profit' not in df.columns:
+            df['Profit'] = (df['Selling Price'] - df['Cost Price']) * df['Quantity']
+        if 'Profit %' not in df.columns:
+            df['Profit %'] = ((df['Selling Price'] - df['Cost Price']) / df['Cost Price'].replace(0, 1) * 100).round(2)
+        return df
 
     # ============== DASHBOARD ==============
     if menu == "📊 Dashboard":
@@ -107,17 +127,15 @@ else:
         st.markdown("### Overview")
         
         # Search
-        search = st.text_input("🔍 Search Product", placeholder="Type to search...")
+        search = st.text_input(" Search Product", placeholder="Type to search...")
         
         # Filter products
         df = st.session_state.products.copy()
         if search:
             df = df[df['Product Name'].str.contains(search, case=False, na=False)]
         
-        # Calculate Profit/Loss
-        if not df.empty and 'Cost Price' in df.columns and 'Selling Price' in df.columns:
-            df['Profit'] = (df['Selling Price'] - df['Cost Price']) * df['Quantity']
-            df['Profit %'] = ((df['Selling Price'] - df['Cost Price']) / df['Cost Price'] * 100).round(2)
+        # Ensure profit columns exist
+        df = ensure_profit_columns(df)
         
         # Key Metrics
         st.markdown("### 📈 Key Metrics")
@@ -132,17 +150,17 @@ else:
             st.metric("Total Investment", f"₹{total_investment:,.0f}")
         with col4:
             total_sales = (df['Selling Price'] * df['Quantity']).sum() if not df.empty else 0
-            st.metric("Total Sales Value", f"₹{total_sales:,.0f}")
+            st.metric("Total Sales Value", f"{total_sales:,.0f}")
         
         # Profit Metrics
         st.markdown("### 💰 Profit/Loss Summary")
         col1, col2, col3 = st.columns(3)
         
         with col1:
-            total_profit = df['Profit'].sum() if not df.empty and 'Profit' in df.columns else 0
+            total_profit = df['Profit'].sum() if not df.empty else 0
             st.metric("Total Profit", f"₹{total_profit:,.0f}")
         with col2:
-            avg_profit_pct = df['Profit %'].mean() if not df.empty and 'Profit %' in df.columns else 0
+            avg_profit_pct = df['Profit %'].mean() if not df.empty else 0
             st.metric("Avg Profit %", f"{avg_profit_pct:.2f}%")
         with col3:
             profit_margin = (total_profit / total_investment * 100) if total_investment > 0 else 0
@@ -165,16 +183,15 @@ else:
             
             with col1:
                 st.markdown("### 📊 Profit by Product")
-                if 'Profit' in df.columns:
-                    fig_profit = px.bar(
-                        df, 
-                        x='Product Name', 
-                        y='Profit',
-                        color='Profit',
-                        color_continuous_scale='RdYlGn',
-                        title='Profit per Product'
-                    )
-                    st.plotly_chart(fig_profit, use_container_width=True)
+                fig_profit = px.bar(
+                    df, 
+                    x='Product Name', 
+                    y='Profit',
+                    color='Profit',
+                    color_continuous_scale='RdYlGn',
+                    title='Profit per Product'
+                )
+                st.plotly_chart(fig_profit, use_container_width=True)
             
             with col2:
                 st.markdown("### 🥧 Sales Distribution")
@@ -210,9 +227,6 @@ else:
             
             if submitted:
                 if name and quantity >= 0 and cost_price >= 0 and selling_price >= 0:
-                    profit = (selling_price - cost_price) * quantity
-                    profit_pct = ((selling_price - cost_price) / cost_price * 100) if cost_price > 0 else 0
-                    
                     new_product = pd.DataFrame({
                         'Product Name': [name],
                         'Category': [category],
@@ -228,6 +242,9 @@ else:
                     ], ignore_index=True)
                     
                     save_to_csv()
+                    
+                    profit = (selling_price - cost_price) * quantity
+                    profit_pct = ((selling_price - cost_price) / cost_price * 100) if cost_price > 0 else 0
                     
                     if profit >= 0:
                         st.success(f"✅ Product '{name}' added successfully!")
@@ -250,10 +267,7 @@ else:
             st.markdown("### Current Inventory")
             
             # Calculate profit for display
-            display_df = st.session_state.products.copy()
-            if 'Cost Price' in display_df.columns and 'Selling Price' in display_df.columns:
-                display_df['Profit'] = (display_df['Selling Price'] - display_df['Cost Price']) * display_df['Quantity']
-                display_df['Profit %'] = ((display_df['Selling Price'] - display_df['Cost Price']) / display_df['Cost Price'] * 100).round(2)
+            display_df = ensure_profit_columns(st.session_state.products.copy())
             
             st.dataframe(display_df, use_container_width=True)
             
@@ -281,92 +295,84 @@ else:
             st.warning("No data available for analysis!")
         else:
             # Calculate profit for all products
-            df = st.session_state.products.copy()
-            if 'Cost Price' in df.columns and 'Selling Price' in df.columns:
-                df['Profit'] = (df['Selling Price'] - df['Cost Price']) * df['Quantity']
-                df['Profit %'] = ((df['Selling Price'] - df['Cost Price']) / df['Cost Price'] * 100).round(2)
-                
-                st.markdown("### 📊 Detailed Profit Analysis")
-                
-                # Summary metrics
-                col1, col2, col3, col4 = st.columns(4)
-                
-                with col1:
-                    total_cost = (df['Cost Price'] * df['Quantity']).sum()
-                    st.metric("Total Cost", f"₹{total_cost:,.0f}")
-                
-                with col2:
-                    total_sales = (df['Selling Price'] * df['Quantity']).sum()
-                    st.metric("Total Sales", f"₹{total_sales:,.0f}")
-                
-                with col3:
-                    total_profit = df['Profit'].sum()
-                    delta_color = "normal" if total_profit >= 0 else "inverse"
-                    st.metric("Total Profit/Loss", f"₹{total_profit:,.0f}", 
-                             delta=f"{total_profit/total_cost*100:.2f}%" if total_cost > 0 else "0%")
-                
-                with col4:
-                    profitable_items = len(df[df['Profit'] > 0])
-                    st.metric("Profitable Items", f"{profitable_items}/{len(df)}")
-                
-                st.markdown("---")
-                
-                # Charts
-                col1, col2 = st.columns(2)
-                
-                with col1:
-                    st.markdown("### 📊 Profit by Product")
-                    fig_bar = px.bar(
-                        df, 
-                        x='Product Name', 
-                        y='Profit',
-                        color='Profit',
-                        color_continuous_scale='RdYlGn',
-                        title='Profit/Loss per Product'
-                    )
-                    st.plotly_chart(fig_bar, use_container_width=True)
-                
-                with col2:
-                    st.markdown("### 📈 Profit Percentage")
-                    fig_line = px.line(
-                        df, 
-                        x='Product Name', 
-                        y='Profit %',
-                        markers=True,
-                        title='Profit % per Product'
-                    )
-                    fig_line.update_traces(line_color='#FF6B6B', marker_size=10)
-                    st.plotly_chart(fig_line, use_container_width=True)
-                
-                # Detailed table
-                st.markdown("### 📋 Detailed Profit Table")
-                st.dataframe(df, use_container_width=True)
-                
-                # Top profitable products
-                st.markdown("### 🏆 Top Profitable Products")
-                top_profit = df.nlargest(5, 'Profit')
-                st.dataframe(top_profit, use_container_width=True)
-                
-                # Loss making products
-                loss_products = df[df['Profit'] < 0]
-                if not loss_products.empty:
-                    st.markdown("### ⚠️ Loss Making Products")
-                    st.dataframe(loss_products, use_container_width=True)
-            else:
-                st.warning("Cost Price and Selling Price data not available!")
+            df = ensure_profit_columns(st.session_state.products.copy())
+            
+            st.markdown("### 📊 Detailed Profit Analysis")
+            
+            # Summary metrics
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                total_cost = (df['Cost Price'] * df['Quantity']).sum()
+                st.metric("Total Cost", f"₹{total_cost:,.0f}")
+            
+            with col2:
+                total_sales = (df['Selling Price'] * df['Quantity']).sum()
+                st.metric("Total Sales", f"₹{total_sales:,.0f}")
+            
+            with col3:
+                total_profit = df['Profit'].sum()
+                delta_color = "normal" if total_profit >= 0 else "inverse"
+                st.metric("Total Profit/Loss", f"₹{total_profit:,.0f}", 
+                         delta=f"{total_profit/total_cost*100:.2f}%" if total_cost > 0 else "0%")
+            
+            with col4:
+                profitable_items = len(df[df['Profit'] > 0])
+                st.metric("Profitable Items", f"{profitable_items}/{len(df)}")
+            
+            st.markdown("---")
+            
+            # Charts
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("### 📊 Profit by Product")
+                fig_bar = px.bar(
+                    df, 
+                    x='Product Name', 
+                    y='Profit',
+                    color='Profit',
+                    color_continuous_scale='RdYlGn',
+                    title='Profit/Loss per Product'
+                )
+                st.plotly_chart(fig_bar, use_container_width=True)
+            
+            with col2:
+                st.markdown("### 📈 Profit Percentage")
+                fig_line = px.line(
+                    df, 
+                    x='Product Name', 
+                    y='Profit %',
+                    markers=True,
+                    title='Profit % per Product'
+                )
+                fig_line.update_traces(line_color='#FF6B6B', marker_size=10)
+                st.plotly_chart(fig_line, use_container_width=True)
+            
+            # Detailed table
+            st.markdown("### 📋 Detailed Profit Table")
+            st.dataframe(df, use_container_width=True)
+            
+            # Top profitable products
+            st.markdown("### 🏆 Top Profitable Products")
+            top_profit = df.nlargest(5, 'Profit')
+            st.dataframe(top_profit, use_container_width=True)
+            
+            # Loss making products
+            loss_products = df[df['Profit'] < 0]
+            if not loss_products.empty:
+                st.markdown("### ⚠️ Loss Making Products")
+                st.dataframe(loss_products, use_container_width=True)
 
     # ============== REPORTS ==============
     elif menu == "📑 Reports":
-        st.title("📑 Reports & Export")
+        st.title(" Reports & Export")
         
         if st.session_state.products.empty:
             st.warning("No data available for reports!")
         else:
             # Calculate profit for export
-            export_df = st.session_state.products.copy()
-            if 'Cost Price' in export_df.columns and 'Selling Price' in export_df.columns:
-                export_df['Profit'] = (export_df['Selling Price'] - export_df['Cost Price']) * export_df['Quantity']
-                export_df['Profit %'] = ((export_df['Selling Price'] - export_df['Cost Price']) / export_df['Cost Price'] * 100).round(2)
+            export_df = ensure_profit_columns(st.session_state.products.copy())
             
             st.markdown("### Download Data")
             
