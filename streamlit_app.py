@@ -17,8 +17,8 @@ if 'products' not in st.session_state:
     ])
 
 # Login credentials
-VALID_USERNAME = "admin"
-VALID_PASSWORD = "admin123"
+VALID_USERNAME = "Sondagar"
+VALID_PASSWORD = "Hetanshi"
 
 # Login Function
 def check_login(username, password):
@@ -54,7 +54,7 @@ if not st.session_state.logged_in:
                     st.error("❌ Invalid username or password!")
         
         st.markdown("---")
-        st.info("💡 **Demo Credentials:**\n- Username: `admin`\n- Password: `admin123`")
+        st.info("💡 **Demo Credentials:**\n- Username: `Sondagar`\n- Password: `hetanshi`")
 
 # ============== MAIN APP (After Login) ==============
 else:
