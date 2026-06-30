@@ -17,8 +17,8 @@ if 'products' not in st.session_state:
     ])
 
 # Login credentials
-VALID_USERNAME = "Hetanshi"
-VALID_PASSWORD = "hetanshi123"
+VALID_USERNAME = "admin"
+VALID_PASSWORD = "admin123"
 
 # Login Function
 def check_login(username, password):
@@ -31,7 +31,7 @@ def logout():
 
 # ============== LOGIN PAGE ==============
 if not st.session_state.logged_in:
-    st.title(" Login Page")
+    st.title("🔐 Login Page")
     st.markdown("### Please login to continue")
     
     col1, col2, col3 = st.columns([1, 2, 1])
@@ -51,10 +51,10 @@ if not st.session_state.logged_in:
                     st.balloons()
                     st.rerun()
                 else:
-                    st.error(" Invalid username or password!")
+                    st.error("❌ Invalid username or password!")
         
         st.markdown("---")
-        st.info("💡 **Demo Credentials:**\n- Username: `Hetanshi`\n- Password: `hetanshi123`")
+        st.info("💡 **Demo Credentials:**\n- Username: `admin`\n- Password: `admin123`")
 
 # ============== MAIN APP (After Login) ==============
 else:
@@ -79,7 +79,7 @@ else:
         st.success(f"✅ Welcome, **{VALID_USERNAME}**!")
         st.markdown("---")
         
-        # Simple menu without emojis to prevent matching errors
+        # Menu without emojis to prevent matching errors
         menu = st.selectbox(
             "Menu",
             ["Dashboard", "Add Product", "Edit/Delete Products", "Profit Analysis", "Reports"]
@@ -98,14 +98,12 @@ else:
     def load_from_csv():
         if os.path.exists('inventory_data.csv'):
             df = pd.read_csv('inventory_data.csv')
-            # Handle old data: if 'Price' exists but 'Cost Price' doesn't
             if 'Price' in df.columns and 'Cost Price' not in df.columns:
                 df['Cost Price'] = df['Price']
                 df['Selling Price'] = df['Price']
                 df = df.drop(columns=['Price'])
             st.session_state.products = df
 
-    # Load existing data
     load_from_csv()
 
     # Helper function to safely calculate profit columns
@@ -153,7 +151,7 @@ else:
             st.metric("Total Sales Value", f"₹{total_sales:,.0f}")
         
         # Profit Metrics
-        st.markdown("###  Profit/Loss Summary")
+        st.markdown("### 💰 Profit/Loss Summary")
         col1, col2, col3 = st.columns(3)
         
         with col1:
@@ -171,7 +169,7 @@ else:
         low_stock = df[df['Quantity'] < 10] if not df.empty else pd.DataFrame()
         if not low_stock.empty:
             for _, row in low_stock.iterrows():
-                st.error(f"🔴 {row['Product Name']} - Only {row['Quantity']} units left!")
+                st.error(f" {row['Product Name']} - Only {row['Quantity']} units left!")
         else:
             st.success("✅ All products have sufficient stock")
         
@@ -190,6 +188,21 @@ else:
                 st.markdown("### 🥧 Sales Distribution")
                 fig_pie = px.pie(df, values='Selling Price', names='Product Name')
                 st.plotly_chart(fig_pie, use_container_width=True)
+        
+        # Monthly Revenue Chart (Restored)
+        st.markdown("### 📈 Monthly Revenue Trend")
+        months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
+        revenue = [85000, 92000, 78000, 105000, 115000, 125000]
+        
+        fig_line = px.line(
+            x=months, 
+            y=revenue, 
+            markers=True,
+            labels={'x': 'Month', 'y': 'Revenue (₹)'},
+            title='Monthly Revenue Trend'
+        )
+        fig_line.update_traces(line_color='#FF6B6B', marker_size=10, line_width=3)
+        st.plotly_chart(fig_line, use_container_width=True)
 
     # ============== ADD PRODUCT ==============
     elif menu == "Add Product":
@@ -253,7 +266,7 @@ else:
             
             product_to_delete = st.selectbox("Select product to delete", st.session_state.products['Product Name'].tolist())
             
-            if st.button("️ Delete Product", type="primary"):
+            if st.button("🗑️ Delete Product", type="primary"):
                 st.session_state.products = st.session_state.products[st.session_state.products['Product Name'] != product_to_delete]
                 save_to_csv()
                 st.success(f"Product '{product_to_delete}' deleted successfully!")
@@ -268,7 +281,7 @@ else:
         else:
             df = ensure_profit_columns(st.session_state.products.copy())
             
-            st.markdown("###  Detailed Profit Analysis")
+            st.markdown("### 📊 Detailed Profit Analysis")
             col1, col2, col3, col4 = st.columns(4)
             
             with col1:
@@ -291,11 +304,11 @@ else:
                 fig_bar = px.bar(df, x='Product Name', y='Profit', color='Profit', color_continuous_scale='RdYlGn')
                 st.plotly_chart(fig_bar, use_container_width=True)
             with col2:
-                st.markdown("###  Profit Percentage")
+                st.markdown("### 📈 Profit Percentage")
                 fig_line = px.line(df, x='Product Name', y='Profit %', markers=True)
                 st.plotly_chart(fig_line, use_container_width=True)
             
-            st.markdown("### 📋 Detailed Profit Table")
+            st.markdown("###  Detailed Profit Table")
             st.dataframe(df, use_container_width=True)
 
     # ============== REPORTS ==============
@@ -316,3 +329,14 @@ else:
                 mime="text/csv",
                 type="primary"
             )
+            
+            st.markdown("---")
+            st.markdown("### Category-wise Summary")
+            category_summary = export_df.groupby('Category').agg({
+                'Quantity': 'sum',
+                'Cost Price': 'mean',
+                'Selling Price': 'mean',
+                'Profit': 'sum'
+            }).reset_index()
+            category_summary.columns = ['Category', 'Total Qty', 'Avg Cost', 'Avg Selling', 'Total Profit']
+            st.dataframe(category_summary, use_container_width=True)
