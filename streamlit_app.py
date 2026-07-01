@@ -20,10 +20,10 @@ if 'products' not in st.session_state:
 VALID_USERNAME = "Sondagar"
 VALID_PASSWORD = "Hetanshi"
 
-# Login Function
+# Login Function (Updated to be case-insensitive)
 def check_login(username, password):
-    return username == VALID_USERNAME and password == VALID_PASSWORD
-
+    # .lower() makes both sides lowercase before comparing
+    return username.lower() == VALID_USERNAME.lower() and password.lower() == VALID_PASSWORD.lower()
 # Logout Function
 def logout():
     st.session_state.logged_in = False
