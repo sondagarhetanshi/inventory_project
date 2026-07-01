@@ -22,8 +22,8 @@ VALID_PASSWORD = "Hetanshi"
 
 # Login Function (Updated to be case-insensitive)
 def check_login(username, password):
-    # .lower() makes both sides lowercase before comparing
     return username.lower() == VALID_USERNAME.lower() and password.lower() == VALID_PASSWORD.lower()
+
 # Logout Function
 def logout():
     st.session_state.logged_in = False
@@ -79,7 +79,6 @@ else:
         st.success(f"✅ Welcome, **{VALID_USERNAME}**!")
         st.markdown("---")
         
-        # Menu without emojis to prevent matching errors
         menu = st.selectbox(
             "Menu",
             ["Dashboard", "Add Product", "Edit/Delete Products", "Profit Analysis", "Reports"]
@@ -103,6 +102,19 @@ else:
                 df['Selling Price'] = df['Price']
                 df = df.drop(columns=['Price'])
             st.session_state.products = df
+        else:
+            # Load sample data if no CSV exists
+            if st.session_state.products.empty:
+                sample_data = pd.DataFrame({
+                    'Product Name': ['Laptop HP', 'Mouse Wireless', 'Keyboard Mechanical', 'Monitor 24"', 'Chair Office', 'Table Study', 'USB Cable', 'Headphones', 'Webcam HD', 'Printer'],
+                    'Category': ['Electronics', 'Accessories', 'Accessories', 'Electronics', 'Furniture', 'Furniture', 'Accessories', 'Electronics', 'Electronics', 'Electronics'],
+                    'Quantity': [15, 50, 30, 12, 8, 5, 100, 25, 20, 10],
+                    'Cost Price': [45000, 300, 2500, 12000, 3500, 5000, 50, 800, 1500, 8000],
+                    'Selling Price': [52000, 450, 3200, 15000, 4500, 6500, 99, 1200, 2200, 10500],
+                    'Date Added': [datetime.now()] * 10
+                })
+                st.session_state.products = sample_data
+                save_to_csv()
 
     load_from_csv()
 
@@ -169,7 +181,7 @@ else:
         low_stock = df[df['Quantity'] < 10] if not df.empty else pd.DataFrame()
         if not low_stock.empty:
             for _, row in low_stock.iterrows():
-                st.error(f" {row['Product Name']} - Only {row['Quantity']} units left!")
+                st.error(f"🔴 {row['Product Name']} - Only {row['Quantity']} units left!")
         else:
             st.success("✅ All products have sufficient stock")
         
@@ -189,7 +201,7 @@ else:
                 fig_pie = px.pie(df, values='Selling Price', names='Product Name')
                 st.plotly_chart(fig_pie, use_container_width=True)
         
-        # Monthly Revenue Chart (Restored)
+        # Monthly Revenue Chart
         st.markdown("### 📈 Monthly Revenue Trend")
         months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun']
         revenue = [85000, 92000, 78000, 105000, 115000, 125000]
@@ -308,7 +320,7 @@ else:
                 fig_line = px.line(df, x='Product Name', y='Profit %', markers=True)
                 st.plotly_chart(fig_line, use_container_width=True)
             
-            st.markdown("###  Detailed Profit Table")
+            st.markdown("### 📋 Detailed Profit Table")
             st.dataframe(df, use_container_width=True)
 
     # ============== REPORTS ==============
