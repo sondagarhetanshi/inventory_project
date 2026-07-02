@@ -162,32 +162,55 @@ elif menu == "Add Product":
                 st.error("❌ Please fill all required fields correctly!")
 
 # ============== EDIT/DELETE PRODUCTS ==============
-elif menu == "Edit/Delete Products":
-    st.title("✏️ Manage Products")
-    
-    if st.session_state.products.empty:
-        st.warning("No products available. Add some products first!")
-    else:
-        # Display all products
-        st.markdown("### Current Inventory")
-        st.dataframe(st.session_state.products, use_container_width=True)
-        
-        st.markdown("---")
-        st.markdown("### Delete Product")
-        
-        product_to_delete = st.selectbox(
-            "Select product to delete",
-            st.session_state.products['Product Name'].tolist()
-        )
-        
-        if st.button("🗑️ Delete Product", type="primary"):
-            st.session_state.products = st.session_state.products[
-                st.session_state.products['Product Name'] != product_to_delete
-            ]
-            save_to_csv()
-            st.success(f"Product '{product_to_delete}' deleted successfully!")
-            st.rerun()
+st.markdown("## ✏️ Edit Product")
 
+product_list = st.session_state.products["Product Name"].tolist()
+
+selected_product = st.selectbox(
+    "Select Product to Edit",
+    product_list,
+    key="edit_product"
+)
+
+if selected_product:
+    index = st.session_state.products[
+        st.session_state.products["Product Name"] == selected_product
+    ].index[0]
+
+    row = st.session_state.products.loc[index]
+
+    new_name = st.text_input("Product Name", row["Product Name"])
+    new_category = st.text_input("Category", row["Category"])
+    new_quantity = st.number_input(
+        "Quantity",
+        min_value=0,
+        value=int(row["Quantity"])
+    )
+
+    new_cost = st.number_input(
+        "Cost Price",
+        min_value=0.0,
+        value=float(row["Cost Price"])
+    )
+
+    new_sell = st.number_input(
+        "Selling Price",
+        min_value=0.0,
+        value=float(row["Selling Price"])
+    )
+
+    if st.button("💾 Update Product"):
+
+        st.session_state.products.loc[index, "Product Name"] = new_name
+        st.session_state.products.loc[index, "Category"] = new_category
+        st.session_state.products.loc[index, "Quantity"] = new_quantity
+        st.session_state.products.loc[index, "Cost Price"] = new_cost
+        st.session_state.products.loc[index, "Selling Price"] = new_sell
+
+        save_to_csv()
+
+        st.success("✅ Product Updated Successfully")
+        st.rerun()
 # ============== REPORTS ==============
 elif menu == "Reports":
     st.title("📑 Reports & Export")
