@@ -1,0 +1,17 @@
+import os
+
+file = "visitors.txt"
+
+if not os.path.exists(file):
+    with open(file, "w") as f:
+        f.write("0")
+
+with open(file, "r") as f:
+    count = int(f.read())
+
+count += 1
+
+with open(file, "w") as f:
+    f.write(str(count))
+
+st.sidebar.metric("Visitors", count)
