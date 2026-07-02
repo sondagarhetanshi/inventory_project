@@ -352,3 +352,12 @@ else:
             }).reset_index()
             category_summary.columns = ['Category', 'Total Qty', 'Avg Cost', 'Avg Selling', 'Total Profit']
             st.dataframe(category_summary, use_container_width=True)
+
+st.header("Feedback")
+
+name = st.text_input("Name")
+email = st.text_input("Email")
+message = st.text_area("Message")
+
+if st.button("Submit"):
+    st.success("Thank you for your feedback!")
