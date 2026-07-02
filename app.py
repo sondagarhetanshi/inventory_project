@@ -4,245 +4,374 @@ import plotly.express as px
 import os
 from datetime import datetime
 
-# Page configuration
-st.set_page_config(page_title="Inventory Analytics System", layout="wide")
-
-# Initialize session state
-if 'products' not in st.session_state:
-    st.session_state.products = pd.DataFrame(columns=[
-        'Product Name', 'Category', 'Quantity', 'Price', 'Date Added'
-    ])
-
-# Custom CSS
-st.markdown("""
-    <style>
-    .metric-card {
-        background-color: #1E1E2E;
-        padding: 20px;
-        border-radius: 10px;
-        border: 1px solid #31333F;
-    }
-    .alert-box {
-        background-color: #FF4B4B;
-        padding: 10px;
-        border-radius: 5px;
-        margin: 10px 0;
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# Sidebar
-with st.sidebar:
-    st.title("📦 Inventory System")
-    menu = st.selectbox(
-        "Menu",
-        ["Dashboard", "Add Product", "Edit/Delete Products", "Reports"]
-    )
-    
-    st.markdown("---")
-    if st.button("Logout"):
-        st.session_state.clear()
-        st.rerun()
-
-# Function to save data
-def save_to_csv():
-    if not st.session_state.products.empty:
-        st.session_state.products.to_csv('inventory_data.csv', index=False)
-
-# Function to load data
-def load_from_csv():
-    if os.path.exists('inventory_data.csv'):
-        st.session_state.products = pd.read_csv('inventory_data.csv')
-
-# Load existing data
-load_from_csv()
-
-# ============== DASHBOARD ==============
-if menu == "Dashboard":
-    st.title("📊 Inventory Analytics System")
-    st.markdown("### Dashboard Overview")
-    
-    # Search
-    search = st.text_input("🔍 Search Product", placeholder="Type to search...")
-    
-    # Filter products
-    df = st.session_state.products.copy()
-    if search:
-        df = df[df['Product Name'].str.contains(search, case=False, na=False)]
-    
-    # Key Metrics
-    st.markdown("### 📈 Key Metrics")
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        st.metric("Total Products", len(df))
-    with col2:
-        st.metric("Total Items", df['Quantity'].sum() if not df.empty else 0)
-    with col3:
-        total_value = (df['Quantity'] * df['Price']).sum() if not df.empty else 0
-        st.metric("Total Value", f"₹{total_value:,.0f}")
-    with col4:
-        avg_price = df['Price'].mean() if not df.empty else 0
-        st.metric("Avg Price", f"₹{avg_price:,.2f}")
-    
-    # Low Stock Alerts
-    st.markdown("### ⚠️ Low Stock Alerts")
-    low_stock = df[df['Quantity'] < 10] if not df.empty else pd.DataFrame()
-    if not low_stock.empty:
-        for _, row in low_stock.iterrows():
-            st.error(f"🔴 {row['Product Name']} - Only {row['Quantity']} units left!")
-    else:
-        st.success("✅ All products have sufficient stock")
-    
-    st.markdown("---")
-    
-    # Charts
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("### 📊 Bar Chart - Top Products")
-        if not df.empty:
-            top_products = df.nlargest(5, 'Quantity')
-            fig_bar = px.bar(top_products, x='Product Name', y='Quantity',
-                           color='Quantity', color_continuous_scale='Blues')
-            st.plotly_chart(fig_bar, use_container_width=True)
-    
-    with col2:
-        st.markdown("### 🥧 Pie Chart - Distribution")
-        if not df.empty:
-            fig_pie = px.pie(df, values='Quantity', names='Product Name')
-            st.plotly_chart(fig_pie, use_container_width=True)
-    
-    # Monthly Revenue Chart
-    st.markdown("### 📈 Monthly Revenue")
-    if not df.empty:
-        months = ['Jan', 'Feb', 'Mar', 'Apr']
-        revenue = [105000, 15000, 19000, 8000]
-        fig_line = px.line(x=months, y=revenue, markers=True)
-        fig_line.update_layout(xaxis_title='Month', yaxis_title='Revenue (₹)')
-        st.plotly_chart(fig_line, use_container_width=True)
-
-# ============== ADD PRODUCT ==============
-elif menu == "Add Product":
-    st.title("➕ Add New Product")
-    
-    with st.form("add_product_form", clear_on_submit=True):
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            name = st.text_input("Product Name *")
-            category = st.selectbox("Category", ["Electronics", "Furniture", "Accessories", "Other"])
-            quantity = st.number_input("Quantity *", min_value=0, step=1)
-        
-        with col2:
-            price = st.number_input("Price (₹) *", min_value=0.0, step=0.01)
-            date_added = st.date_input("Date Added", datetime.now())
-        
-        submitted = st.form_submit_button("💾 Save Product", type="primary")
-        
-        if submitted:
-            if name and quantity >= 0 and price >= 0:
-                new_product = pd.DataFrame({
-                    'Product Name': [name],
-                    'Category': [category],
-                    'Quantity': [quantity],
-                    'Price': [price],
-                    'Date Added': [date_added]
-                })
-                
-                st.session_state.products = pd.concat([
-                    st.session_state.products, 
-                    new_product
-                ], ignore_index=True)
-                
-                save_to_csv()
-                st.success(f"✅ Product '{name}' added successfully!")
-                st.balloons()
-            else:
-                st.error("❌ Please fill all required fields correctly!")
-
-# ============== EDIT/DELETE PRODUCTS ==============
-st.markdown("## ✏️ Edit Product")
-
-product_list = st.session_state.products["Product Name"].tolist()
-
-selected_product = st.selectbox(
-    "Select Product to Edit",
-    product_list,
-    key="edit_product"
+st.set_page_config(
+    page_title="Inventory Analytics Pro",
+    page_icon="📦",
+    layout="wide"
 )
 
-if selected_product:
-    index = st.session_state.products[
-        st.session_state.products["Product Name"] == selected_product
-    ].index[0]
+# ---------------- Session ----------------
+if "logged_in" not in st.session_state:
+    st.session_state.logged_in = False
 
-    row = st.session_state.products.loc[index]
-
-    new_name = st.text_input("Product Name", row["Product Name"])
-    new_category = st.text_input("Category", row["Category"])
-    new_quantity = st.number_input(
-        "Quantity",
-        min_value=0,
-        value=int(row["Quantity"])
+if "products" not in st.session_state:
+    st.session_state.products = pd.DataFrame(
+        columns=[
+            "Product Name",
+            "Category",
+            "Quantity",
+            "Price",
+            "Date Added"
+        ]
     )
 
-    new_cost = st.number_input(
-        "Cost Price",
-        min_value=0.0,
-        value=float(row["Cost Price"])
+USERNAME = "admin"
+PASSWORD = "admin123"
+
+# ---------------- CSS ----------------
+st.markdown("""
+<style>
+.main{
+    background:#0E1117;
+}
+
+h1,h2,h3{
+    color:white;
+}
+
+.stButton>button{
+    width:100%;
+    border-radius:10px;
+}
+
+div[data-testid="metric-container"]{
+    background:#262730;
+    border-radius:10px;
+    padding:15px;
+}
+</style>
+""",unsafe_allow_html=True)
+
+# ---------------- CSV ----------------
+
+def save_data():
+    st.session_state.products.to_csv(
+        "inventory_data.csv",
+        index=False
     )
 
-    new_sell = st.number_input(
-        "Selling Price",
-        min_value=0.0,
-        value=float(row["Selling Price"])
+def load_data():
+    if os.path.exists("inventory_data.csv"):
+        st.session_state.products=pd.read_csv(
+            "inventory_data.csv"
+        )
+
+load_data()
+# ---------------- Login ----------------
+
+if not st.session_state.logged_in:
+
+    st.title("🔐 Inventory Analytics Pro")
+
+    st.markdown("### Login")
+
+    username = st.text_input("Username")
+    password = st.text_input("Password", type="password")
+
+    if st.button("Login"):
+
+        if username == USERNAME and password == PASSWORD:
+
+            st.session_state.logged_in = True
+            st.success("✅ Login Successful")
+            st.rerun()
+
+        else:
+
+            st.error("❌ Invalid Username or Password")
+
+    st.stop()
+
+# ---------------- Sidebar ----------------
+
+with st.sidebar:
+
+    st.title("📦 Inventory Pro")
+
+    st.success("Logged in as Admin")
+
+    menu = st.radio(
+        "Select Menu",
+        [
+            "Dashboard",
+            "Add Product",
+            "Edit/Delete Product",
+            "Reports"
+        ]
     )
 
-    if st.button("💾 Update Product"):
+    st.markdown("---")
 
-        st.session_state.products.loc[index, "Product Name"] = new_name
-        st.session_state.products.loc[index, "Category"] = new_category
-        st.session_state.products.loc[index, "Quantity"] = new_quantity
-        st.session_state.products.loc[index, "Cost Price"] = new_cost
-        st.session_state.products.loc[index, "Selling Price"] = new_sell
+    if st.button("🚪 Logout"):
 
-        save_to_csv()
-
-        st.success("✅ Product Updated Successfully")
+        st.session_state.logged_in = False
         st.rerun()
-# ============== REPORTS ==============
-elif menu == "Reports":
-    st.title("📑 Reports & Export")
-    
-    if st.session_state.products.empty:
-        st.warning("No data available for reports!")
-    else:
-        # Export options
-        st.markdown("### Download Data")
-        
+        # ================= DASHBOARD =================
+
+if menu == "Dashboard":
+
+    st.title("📊 Inventory Dashboard")
+
+    search = st.text_input("🔍 Search Product")
+
+    df = st.session_state.products.copy()
+
+    if search:
+        df = df[df["Product Name"].str.contains(search, case=False, na=False)]
+
+    col1, col2, col3 = st.columns(3)
+
+    with col1:
+        st.metric("📦 Total Products", len(df))
+
+    with col2:
+        total_qty = df["Quantity"].sum() if not df.empty else 0
+        st.metric("📦 Total Quantity", int(total_qty))
+
+    with col3:
+        total_value = (df["Quantity"] * df["Price"]).sum() if not df.empty else 0
+        st.metric("💰 Inventory Value", f"₹{total_value:,.0f}")
+
+    st.markdown("---")
+
+    st.subheader("⚠️ Low Stock")
+
+    if not df.empty:
+        low = df[df["Quantity"] < 10]
+
+        if low.empty:
+            st.success("✅ No Low Stock Products")
+
+        else:
+            st.dataframe(low, use_container_width=True)
+
+    st.markdown("---")
+
+    if not df.empty:
+
         col1, col2 = st.columns(2)
-        
+
         with col1:
-            csv = st.session_state.products.to_csv(index=False)
-            st.download_button(
-                label="📥 Download as CSV",
-                data=csv,
-                file_name=f"inventory_{datetime.now().strftime('%Y%m%d')}.csv",
-                mime="text/csv",
-                type="primary"
+
+            fig = px.bar(
+                df,
+                x="Product Name",
+                y="Quantity",
+                color="Category",
+                title="Product Quantity"
             )
-        
+
+            st.plotly_chart(fig, use_container_width=True)
+
         with col2:
-            if st.button("📊 Generate Summary Report"):
-                st.markdown("### Summary Statistics")
-                st.write(st.session_state.products.describe())
-        
+
+            fig2 = px.pie(
+                df,
+                values="Quantity",
+                names="Category",
+                title="Category Distribution"
+            )
+
+            st.plotly_chart(fig2, use_container_width=True)
+
+    else:
+
+        st.info("No Products Available. Please Add Products.")
+        # ================= ADD PRODUCT =================
+
+elif menu == "Add Product":
+
+    st.title("➕ Add New Product")
+
+    with st.form("add_product", clear_on_submit=True):
+
+        name = st.text_input("Product Name")
+
+        category = st.selectbox(
+            "Category",
+            ["Electronics", "Furniture", "Accessories", "Other"]
+        )
+
+        quantity = st.number_input(
+            "Quantity",
+            min_value=0,
+            step=1
+        )
+
+        price = st.number_input(
+            "Price (₹)",
+            min_value=0.0,
+            step=1.0
+        )
+
+        date = st.date_input("Date Added")
+
+        submit = st.form_submit_button("💾 Save Product")
+
+        if submit:
+
+            new_data = pd.DataFrame({
+
+                "Product Name":[name],
+                "Category":[category],
+                "Quantity":[quantity],
+                "Price":[price],
+                "Date Added":[date]
+
+            })
+
+            st.session_state.products = pd.concat(
+                [st.session_state.products, new_data],
+                ignore_index=True
+            )
+
+            save_data()
+
+            st.success("✅ Product Added Successfully")
+            st.balloons()
+            # ================= EDIT / DELETE PRODUCT =================
+
+elif menu == "Edit/Delete Product":
+
+    st.title("✏️ Edit / Delete Product")
+
+    if st.session_state.products.empty:
+
+        st.warning("No products available.")
+
+    else:
+
+        product = st.selectbox(
+            "Select Product",
+            st.session_state.products["Product Name"]
+        )
+
+        index = st.session_state.products[
+            st.session_state.products["Product Name"] == product
+        ].index[0]
+
+        row = st.session_state.products.loc[index]
+
+        new_name = st.text_input(
+            "Product Name",
+            value=row["Product Name"]
+        )
+
+        new_category = st.selectbox(
+            "Category",
+            ["Electronics","Furniture","Accessories","Other"],
+            index=["Electronics","Furniture","Accessories","Other"].index(row["Category"])
+        )
+
+        new_quantity = st.number_input(
+            "Quantity",
+            value=int(row["Quantity"]),
+            min_value=0
+        )
+
+        new_price = st.number_input(
+            "Price",
+            value=float(row["Price"]),
+            min_value=0.0
+        )
+
+        col1, col2 = st.columns(2)
+
+        with col1:
+
+            if st.button("💾 Update Product"):
+
+                st.session_state.products.loc[index,"Product Name"] = new_name
+                st.session_state.products.loc[index,"Category"] = new_category
+                st.session_state.products.loc[index,"Quantity"] = new_quantity
+                st.session_state.products.loc[index,"Price"] = new_price
+
+                save_data()
+
+                st.success("✅ Product Updated")
+                st.rerun()
+
+        with col2:
+
+            if st.button("🗑 Delete Product"):
+
+                st.session_state.products = st.session_state.products.drop(index).reset_index(drop=True)
+
+                save_data()
+
+                st.success("✅ Product Deleted")
+                st.rerun()
+                # ================= REPORTS =================
+
+elif menu == "Reports":
+
+    st.title("📑 Inventory Reports")
+
+    if st.session_state.products.empty:
+
+        st.warning("No Products Available!")
+
+    else:
+
+        df = st.session_state.products.copy()
+
+        # ===== Metrics =====
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.metric("📦 Total Products", len(df))
+
+        with col2:
+            st.metric("📦 Total Quantity", int(df["Quantity"].sum()))
+
+        with col3:
+            total_value = (df["Quantity"] * df["Price"]).sum()
+            st.metric("💰 Total Inventory Value", f"₹{total_value:,.2f}")
+
         st.markdown("---")
-        st.markdown("### Category-wise Summary")
-        if not st.session_state.products.empty:
-            category_summary = st.session_state.products.groupby('Category').agg({
-                'Quantity': 'sum',
-                'Price': 'mean'
-            }).reset_index()
-            st.dataframe(category_summary, use_container_width=True)
+
+        # ===== Category Summary =====
+        st.subheader("📊 Category Summary")
+
+        category = df.groupby("Category").agg({
+            "Quantity":"sum",
+            "Price":"mean"
+        }).reset_index()
+
+        category.columns=[
+            "Category",
+            "Total Quantity",
+            "Average Price"
+        ]
+
+        st.dataframe(category, use_container_width=True)
+
+        st.markdown("---")
+
+        # ===== Complete Inventory =====
+        st.subheader("📋 Inventory Data")
+
+        st.dataframe(df, use_container_width=True)
+
+        st.markdown("---")
+
+        # ===== CSV Download =====
+
+        csv = df.to_csv(index=False)
+
+        st.download_button(
+            "📥 Download CSV",
+            csv,
+            "inventory_report.csv",
+            "text/csv"
+        )
