@@ -375,3 +375,50 @@ elif menu == "Reports":
             "inventory_report.csv",
             "text/csv"
         )
+        import streamlit as st
+import pandas as pd
+
+from dashboard import dashboard_page
+from inventory import inventory_page
+
+DATA_FILE = "inventory_data.csv"
+
+
+# Load data
+def load_data():
+    try:
+        return pd.read_csv(DATA_FILE)
+    except:
+        return pd.DataFrame(columns=[
+            "Product Name",
+            "Category",
+            "Quantity",
+            "Price"
+        ])
+
+
+def main():
+
+    st.set_page_config(
+        page_title="Inventory Analytics System",
+        layout="wide"
+    )
+
+    st.sidebar.title("📦 Inventory System")
+
+    menu = st.sidebar.radio(
+        "Navigation",
+        ["Dashboard", "Inventory Management"]
+    )
+
+    df = load_data()
+
+    if menu == "Dashboard":
+        dashboard_page(df)
+
+    elif menu == "Inventory Management":
+        inventory_page()
+
+
+if __name__ == "__main__":
+    main()
